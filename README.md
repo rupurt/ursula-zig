@@ -1,5 +1,7 @@
 # ursula-zig
 
+[![CI](https://github.com/rupurt/ursula-zig/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rupurt/ursula-zig/actions/workflows/ci.yml)
+
 A Zig client library for [Ursula](https://ursula.tonbo.io/), a durable streams
 service with an HTTP API and Server-Sent Events (SSE) for live reads.
 
@@ -104,6 +106,14 @@ nix develop --command just check
 
 Include the updated `flake.lock` with any changes needed for the new compiler.
 
+## Continuous integration
+
+[CI](.github/workflows/ci.yml) runs on pull requests, pushes to `main`, and manual
+dispatch. It uses the committed Nix pins to check formatting, build the library
+and examples, and run unit and live Ursula integration tests in Debug and
+ReleaseSafe on Ubuntu. Flake outputs are also evaluated for all four supported
+platforms. Nix store caching reuses the source-built server and CLI between runs.
+
 ## Layout
 
 - `src/root.zig`: public `ursula` module.
@@ -125,6 +135,9 @@ Include the updated `flake.lock` with any changes needed for the new compiler.
 Read [AGENTS.md](AGENTS.md), keep changes focused, and run `just check` before
 submitting code. Document public APIs and add tests alongside their implementation.
 Clearly distinguish implemented functionality from planned functionality.
+Pull requests include a template for the change, validation, and compatibility
+notes. Issue forms collect reproducible bug reports and feature requests; blank
+issues remain available for other topics.
 
 ## License
 

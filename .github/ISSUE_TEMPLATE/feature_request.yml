@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a client capability or contributor workflow improvement.
+title: "feat: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Use case
+      description: Describe what you are trying to do and the limitation you encounter.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired result. Include a small API example if useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Describe workarounds or other approaches you have considered.
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Protocol references and context
+      description: Link relevant Ursula endpoint documentation, tagged server source, or related issues.

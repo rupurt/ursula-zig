@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a client, build, or test failure.
+title: "bug: "
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Describe what you expected and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include a minimal Zig example or exact commands and steps to reproduce the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the client commit, OS and architecture, Zig version, and Ursula release if relevant.
+      placeholder: |
+        Client commit (git rev-parse HEAD):
+        OS / architecture:
+        Zig version (nix develop --command zig version):
+        Ursula release, if relevant:
+        Using the committed flake.lock or custom tool versions:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste compiler errors, failing test output, or HTTP status and headers. Remove credentials and private payloads.
+      render: text

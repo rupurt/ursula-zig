@@ -40,6 +40,12 @@ assume every protocol operation exists on the server.
   changes have been committed and published. Do not use a local file input.
 - Run `just fmt` after Zig edits and `just check` before handing off code changes.
   Report checks that could not run and explain the actual blocker.
+- `.github/workflows/ci.yml` runs checks plus Debug and ReleaseSafe unit and live
+  integration tests on Linux. It evaluates all flake platforms without building
+  foreign targets. Keep its commands aligned with the justfile and preserve
+  failure propagation through verbose test output pipes.
+- Pin GitHub Actions to full commit hashes, with a version comment. Validate
+  workflow edits with `actionlint` and run any changed check/test commands locally.
 - Update the toolchain intentionally with `nix flake update zig-overlay`, rerun
   checks inside a fresh shell, and include `flake.lock` with related fixes.
 - Keep generated `.zig-cache/`, `zig-out/`, and `.direnv/` files out of version
