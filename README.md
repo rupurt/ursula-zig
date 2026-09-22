@@ -3,20 +3,10 @@
 A Zig client library for [Ursula](https://ursula.tonbo.io/), a durable streams
 service with an HTTP API and Server-Sent Events (SSE) for live reads.
 
-This repository is at the foundation stage: it contains a reproducible development
-environment and a minimal library build. The client API is not implemented yet,
-and there are no unit test cases or runnable applications yet.
-
-## Intended scope
-
-The first implementation will focus on bucket creation, stream creation,
-appending, reading from an offset, inspecting metadata, closing, and deleting
-streams. Live reads through long-polling and SSE will follow. These operations
-should follow the [Ursula API reference](https://ursula.tonbo.io/docs/api/overview/).
-
-Keep memory ownership explicit, preserve protocol response metadata, and make
-errors useful to callers. Snapshot support and other Ursula extensions can be
-added as the core client takes shape.
+The first implementation layer provides typed operations and validated HTTP request
+construction for the public stream API. Network transport and live SSE reads are
+being added next. See [the architecture notes](docs/architecture.md) for ownership,
+protocol choices, and the implementation roadmap.
 
 ## Development
 
@@ -51,7 +41,7 @@ There are five tasks:
 | --- | --- |
 | `just` | List available tasks. |
 | `just build` | Build the static library into `zig-out/lib/`. |
-| `just test` | Run the library's test runner (currently no test cases). |
+| `just test` | Run deterministic library tests. |
 | `just fmt` | Format Zig sources and build files. |
 | `just check` | Check formatting, build, and run tests. |
 
