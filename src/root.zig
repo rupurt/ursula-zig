@@ -1,4 +1,5 @@
 //! A Zig client for Ursula's durable streams HTTP API.
+pub const sse = @import("sse.zig");
 pub const Client = @import("Client.zig");
 pub const Response = @import("response.zig").Response;
 pub const ResponseHead = @import("response.zig").Head;

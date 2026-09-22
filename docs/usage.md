@@ -99,3 +99,52 @@ Redirects are returned unchanged, including the latest-snapshot `307`. Inspect
 Authorization is never forwarded automatically. HTTPS certificate validation uses
 Zig's standard HTTP client; tests currently cover HTTP on loopback, not a live
 Ursula cluster or TLS endpoint.
+
+## Live SSE reads
+
+Open a stream, inspect its response, then initialize the decoder from the headers:
+
+```zig
+const exchange = try client.open(.{ .read = .{
+    .stream = stream,
+    .options = .{ .position = .now, .live = .sse },
+} });
+defer exchange.deinit();
+try exchange.head.requireSuccess();
+var decoder = try ursula.sse.Decoder.fromHead(allocator, exchange.body, exchange.head, .{});
+defer decoder.deinit();
+while (try decoder.next()) |event| {
+    // event.name, event.data, and event.id borrow reusable decoder buffers.
+    // Process or copy them before calling next again.
+    if (std.mem.eql(u8, event.name, "control")) {
+        var control = try event.parseControl(allocator);
+        defer control.deinit();
+        // Persist streamCursor or streamNextOffset AFTER applying preceding data.
+        if (control.value.streamClosed) break;
+    }
+}
+```
+
+`fromHead` requires HTTP 200 and `text/event-stream`. Handle a 204, redirect, or
+error response before constructing it. The decoder honors `Stream-Sse-Data-Encoding`
+and returns decoded binary bytes for data events. Control events stay JSON. Their
+parsed strings are independently owned until the parsed result's `deinit`.
+
+Use configurable `sse.Limits` for larger events. Defaults are 64 KiB per line and
+1 MiB per event, counting framing field lines. Invalid UTF-8, invalid base64,
+oversized events, and reader errors stop decoding. Destroy a failed decoder and
+reconnect with a fresh one if application policy permits.
+
+A `null` event means the connection ended, not that the durable stream is closed.
+Reopen from the last successfully applied control cursor or offset. Do not
+reconnect after `streamClosed`. Handle `credential-expired` by refreshing the
+credential before reconnecting. The parser exposes unknown event names, persistent
+SSE IDs, and retry hints but does not enact browser EventSource reconnect behavior.
+For JSON data, buffer incomplete NDJSON records across events before parsing.
+
+The compiled [tail example](../examples/tail.zig) prints decoded data and exits on
+closure. It reports a disconnect rather than reconnecting automatically:
+
+```sh
+nix develop --command zig build tail -- http://127.0.0.1:4437 demo hello
+```

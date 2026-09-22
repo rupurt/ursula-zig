@@ -24,18 +24,24 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run library unit tests");
     test_step.dependOn(&run_tests.step);
 
-    const example = b.addExecutable(.{
-        .name = "ursula-read",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("examples/read.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "ursula", .module = ursula }},
-        }),
-    });
-    // Compile the public API example during tests without contacting a server.
-    test_step.dependOn(&example.step);
-    const run_example = b.addRunArtifact(example);
-    run_example.addPassthruArgs();
-    b.step("example", "Read an existing stream: -- BASE_URL BUCKET STREAM").dependOn(&run_example.step);
+    const examples = .{
+        .{ "read", "example", "Read an existing stream: -- BASE_URL BUCKET STREAM" },
+        .{ "tail", "tail", "Tail an existing stream: -- BASE_URL BUCKET STREAM" },
+    };
+    inline for (examples) |entry| {
+        const example = b.addExecutable(.{
+            .name = "ursula-" ++ entry[0],
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("examples/" ++ entry[0] ++ ".zig"),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{.{ .name = "ursula", .module = ursula }},
+            }),
+        });
+        // Compile public API examples without contacting a server during tests.
+        test_step.dependOn(&example.step);
+        const run_example = b.addRunArtifact(example);
+        run_example.addPassthruArgs();
+        b.step(entry[1], entry[2]).dependOn(&run_example.step);
+    }
 }

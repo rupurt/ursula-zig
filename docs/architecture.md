@@ -22,8 +22,9 @@ The documentation is a moving target; check it again when adding behavior.
 - `response.zig` copies response headers before body consumption invalidates the
   HTTP parser's slices. A finite `Response` owns both headers and body; it can
   outlive its client. Parsed metadata borrows that response head.
-- SSE decoding will operate on `std.Io.Reader`, independently of HTTP and the
-  application's choice of runtime.
+- `sse.zig` decodes a `std.Io.Reader` independently of HTTP and the runtime.
+  `Decoder` owns reusable bounded buffers. Events borrow those buffers; parsed
+  control JSON owns its storage and survives subsequent events.
 
 ## Protocol decisions
 
@@ -56,7 +57,7 @@ encoding, and allocation-failure cleanup. Keep protocol tests independent of a l
 Ursula deployment. Transport tests use a deterministic loopback HTTP
 fixture, including failure, size limits, connection reuse, cancellation, abandoned
 live bodies, and allocation-failure cleanup. They need local socket access, not an
-Ursula deployment. The read-only usage example is compiled as part of the test step.
+Ursula deployment. Both usage examples are compiled as part of the test step.
 
 ## Transport policy
 
@@ -76,3 +77,34 @@ The caller owns runtime policy: scheduling, cancellation, deadlines, and retry
 backoff. A blocked operation can be canceled through `std.Io` futures or groups.
 After a body reader reports `ReadFailed`, `Exchange.readError()` exposes the
 underlying framing or transport error, including cancellation.
+
+## Live reads
+
+The parser follows [SSE event framing](https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation)
+and [Ursula binary SSE semantics](https://ursula.tonbo.io/docs/concepts/binary-sse/).
+It handles byte fragmentation, UTF-8 BOM, LF/CRLF/CR, comments, multiline data,
+event names, persistent IDs, and numeric retry hints. It rejects invalid UTF-8
+instead of the browser algorithm's replacement behavior. Incomplete events at EOF
+are discarded. Unknown event types remain visible to callers.
+
+Only `event: data` is base64-decoded when the response advertises it. Newlines
+inserted by SSE framing are removed before decoding binary payloads; text payloads
+retain SSE newline joining. Control events remain JSON, including optional record
+coordinates and unknown future fields. NDJSON record assembly is the caller's job.
+
+Do not treat `upToDate` or transport EOF as stream closure. Persist a control
+checkpoint only after applying preceding data. Reconnect from the last applied
+cursor or offset, unless `streamClosed` is true. Automatic reconnect, credential
+refresh, durable checkpoint storage, and retry backoff are application policies.
+
+The decoder defaults to 64 KiB lines and 1 MiB events. The event budget counts
+non-comment field lines and delimiters; line limits also apply to comments. These
+limits are configurable separately from HTTP body collection limits. Decoder
+errors are terminal, so callers cannot accidentally continue a corrupted frame.
+
+## Further work
+
+Live Ursula/TLS conformance tests, multipart decoding, typed batch acknowledgement
+parsing, optional higher-level reconnect policy, and streamed request uploads are
+not implemented. Add them as separate tested APIs rather than changing raw response
+semantics or introducing hidden retry behavior.

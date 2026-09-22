@@ -6,7 +6,9 @@ service with an HTTP API and Server-Sent Events (SSE) for live reads.
 The client supports bucket creation; stream creation, append, close, read, HEAD,
 and deletion; long-polling; attributes; append batches; snapshots; retention; and
 raw multipart bootstrap responses. It accepts the caller's `std.Io` and uses Zig's
-HTTP client for HTTP/HTTPS. Incremental SSE decoding is the next implementation layer.
+HTTP client for HTTP/HTTPS. Incremental SSE decoding supports text and binary
+payloads, control metadata, and bounded memory use. This is an early client library;
+validation currently uses protocol fixtures rather than a live Ursula cluster.
 
 See [the architecture notes](docs/architecture.md) for ownership and protocol
 choices, and [client usage](docs/usage.md) for examples and limits.
@@ -21,9 +23,6 @@ nix develop
 just
 just check
 ```
-
-While the new flake files are still untracked by Git, enter the shell with
-`nix develop path:.` instead.
 
 The shell includes `just` and the Zig `master` nightly from
 [zig-overlay](https://github.com/mitchellh/zig-overlay). `flake.lock` pins the
@@ -49,8 +48,8 @@ There are five tasks:
 | `just check` | Check formatting, build, and run tests. |
 
 Tests use an ephemeral loopback HTTP fixture and require local socket access,
-but do not require an Ursula server or external network access. To try Ursula itself, follow
-its [quick start](https://ursula.tonbo.io/docs/quick-start/).
+but do not require an Ursula server or external network access. To try Ursula
+itself, follow its [quick start](https://ursula.tonbo.io/docs/quick-start/).
 
 Update the pinned Zig nightly deliberately, then check compatibility:
 
@@ -66,7 +65,8 @@ Include the updated `flake.lock` with any changes needed for the new compiler.
 - `src/root.zig`: public `ursula` module.
 - `src/protocol.zig` and `src/request.zig`: typed operations and request validation.
 - `src/Client.zig` and `src/response.zig`: I/O transport and owned responses.
-- `examples/read.zig`: compiled, read-only client example.
+- `src/sse.zig`: incremental event decoding over `std.Io.Reader`.
+- `examples/`: compiled examples for catch-up reads and live tailing.
 - `docs/`: architecture and client usage.
 - `build.zig`: library and unit-test build steps.
 - `build.zig.zon`: Zig package metadata.

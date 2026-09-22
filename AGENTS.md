@@ -3,9 +3,10 @@
 ## Purpose and current state
 
 Build a Zig client library for Ursula's public durable streams API. The repository
-implements typed protocol operations, validated request construction, and an HTTP
-transport using caller-supplied `std.Io`, with unit and loopback tests. Consult `docs/architecture.md` for the implementation layers. Keep the README accurate as
-functionality lands.
+implements typed protocol operations, validated request construction, HTTP
+transport using caller-supplied `std.Io`, and incremental SSE decoding. Unit and
+loopback tests cover these layers. Consult `docs/architecture.md` for their ownership
+rules, and keep the README accurate as functionality lands.
 
 ## Sources of truth
 
@@ -34,7 +35,8 @@ assume every protocol operation exists on the server.
 
 ## Code structure and conventions
 
-- Read `docs/architecture.md` before changing transport, ownership, or protocol behavior.
+- Read `docs/architecture.md` before changing transport, ownership, or protocol
+  behavior.
 - Expose the public library API through `src/root.zig` and the `ursula` build
   module. Keep implementation modules under `src/`.
 - Accept `std.Io` from callers; do not create a hidden runtime or use legacy
@@ -49,8 +51,15 @@ assume every protocol operation exists on the server.
   protocol metadata for callers to understand server responses.
 - Keep the server URL and request configuration explicit. Do not hard-code a
   deployment or log credentials and stream payloads.
+- Keep `Client` and open `Exchange` addresses stable; std.http readers refer to
+  their request. Copy response headers before reading the body. Close abandoned
+  live exchanges without draining them.
+- SSE event slices borrow decoder buffers until the next `next` call. Parsed
+  control results own their strings. Preserve this distinction in tests and docs.
 - Follow documented offset, cursor, header, and SSE semantics. Do not assume
   network chunks align with records or SSE events.
+- Never advance application checkpoints before preceding data is processed.
+  SSE transport EOF is not stream closure; only protocol closure metadata is.
 - Make append retries and producer identity explicit; do not silently retry
   writes whose outcome is unknown without the protocol's deduplication guarantees.
 
@@ -59,7 +68,12 @@ assume every protocol operation exists on the server.
 - Add focused unit tests with new behavior, including malformed responses and
   cleanup paths where relevant. Use `std.testing.allocator` for allocation tests.
 - Keep default unit tests deterministic and independent of a running server.
-  Make future integration tests opt-in and document their server requirements.
+  The loopback fixture requires local sockets but no external service. Keep live
+  Ursula integration tests opt-in and document their server requirements.
+- `zig build test` also compiles the examples. For transport, parsing, or ownership
+  changes, validate both Debug and `zig build test -Doptimize=ReleaseSafe`. Use
+  allocation-failure checks for new owning structures and deterministic byte
+  fragmentation tests for incremental parsers.
 - Keep changes limited to the requested work. Update documentation when public
   behavior or development commands change.
 - Preserve existing user changes and the project's MIT license.
