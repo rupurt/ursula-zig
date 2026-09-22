@@ -192,3 +192,32 @@ fn transportAllocationCase(allocator: std.mem.Allocator) !void {
 test "HTTP request response and connection cleanup at every allocation failure" {
     try t.checkAllAllocationFailures(t.allocator, transportAllocationCase, .{});
 }
+
+test "informational HTTP heads are skipped until the final response" {
+    var fixture = try Fixture.init(&.{.{ .response = "HTTP/1.1 103 Early Hints\r\nLink: </style.css>\r\n\r\nHTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nok" }});
+    defer fixture.deinit();
+    var future = try t.io.concurrent(Fixture.run, .{&fixture});
+    defer future.cancel(t.io) catch {};
+    var client = try clientFor(fixture, 1024);
+    defer client.deinit();
+    var result = try client.send(.{ .read = .{ .stream = stream } });
+    defer result.deinit();
+    try t.expectEqual(.ok, result.head.status);
+    try t.expectEqualStrings("ok", result.body);
+    try future.await(t.io);
+}
+
+test "response header limit is enforced before allocating a body" {
+    const raw = try t.allocator.print("HTTP/1.1 200 OK\r\nX-Large: {s}\r\nContent-Length: 0\r\n\r\n", .{@as([1024]u8, @splat('a'))});
+    defer t.allocator.free(raw);
+    var fixture = try Fixture.init(&.{.{ .response = raw }});
+    defer fixture.deinit();
+    var future = try t.io.concurrent(Fixture.run, .{&fixture});
+    defer future.cancel(t.io) catch {};
+    const url = try fixture.url(t.allocator);
+    defer t.allocator.free(url);
+    var client = try Client.init(t.allocator, t.io, .{ .base_url = url, .max_header_bytes = 256 });
+    defer client.deinit();
+    try t.expectError(error.HttpHeadersOversize, client.send(.{ .read = .{ .stream = stream } }));
+    try future.await(t.io);
+}

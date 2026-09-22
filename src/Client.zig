@@ -97,13 +97,20 @@ pub fn open(self: *Client, operation: p.Operation) !*Exchange {
     }
     e.prepared.body = "";
     var received = try e.request.receiveHead(&.{});
+    var interim_count: usize = 0;
+    while (received.head.status.class() == .informational) {
+        if (received.head.status == .switching_protocols) return error.UnsupportedUpgrade;
+        interim_count += 1;
+        if (interim_count > 16) return error.TooManyInformationalResponses;
+        received = try e.request.receiveHead(&.{});
+    }
     e.head = try response.Head.init(allocator, received.head.bytes);
     errdefer e.head.deinit();
     e.owns_head = true;
     if (received.head.content_encoding != .identity) return error.UnsupportedContentEncoding;
     // HTTP forbids bodies here, even if Content-Length advertises representation
     // size. Do not wait for bytes that will never arrive on a persistent connection.
-    if (e.prepared.method == .HEAD or e.head.status == .no_content or e.head.status == .not_modified or e.head.status.class() == .informational) {
+    if (e.prepared.method == .HEAD or e.head.status == .no_content or e.head.status == .not_modified) {
         e.request.reader.state = .ready;
         e.body = .ending;
     } else {
