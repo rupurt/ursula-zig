@@ -33,8 +33,11 @@ assume every protocol operation exists on the server.
   before changing its fixture or the server derivation. The shell supplies Python
   and source-built Ursula and `ursulactl`; `nix build .#ursula --no-link` builds
   just the server, and `nix build .#ursulactl --no-link` builds just the CLI.
-  `nix/ursulactl.nix` inherits the server's release, Cargo dependencies, Rust
-  toolchain, and protoc patch; keep those pins shared.
+  The separate `ursula-overlay` input owns their derivations and shared pins.
+  Edit packaging in `../ursula-overlay`, following its AGENTS.md. Keep this
+  repository consuming the overlay rather than duplicating its derivations.
+  The input uses `github:rupurt/ursula-overlay`; update its lock after overlay
+  changes have been committed and published. Do not use a local file input.
 - Run `just fmt` after Zig edits and `just check` before handing off code changes.
   Report checks that could not run and explain the actual blocker.
 - Update the toolchain intentionally with `nix flake update zig-overlay`, rerun
@@ -82,10 +85,11 @@ assume every protocol operation exists on the server.
   deployment. Preserve readiness/test deadlines, failure logs, signal cleanup, and
   fresh state on every invocation. Give independent tests distinct bucket names.
 - Run `just test integration` after changing wire behavior or the Ursula pin.
-  Keep the release tag, source hash, Cargo hash, and Rust nightly in sync; verify
-  the latest upstream tag when upgrading. Do not bypass nightly requirements with
-  `RUSTC_BOOTSTRAP`. Match observed release behavior when endpoint docs are stale,
-  and document discrepancies with links to the tagged source.
+  Update release/build pins in `ursula-overlay`, then run
+  `nix flake update ursula-overlay` here. Verify the latest upstream tag when
+  upgrading and preserve shared server/CLI pins. Match observed release behavior
+  when endpoint docs are stale, and document discrepancies with links to the
+  tagged source.
 - `zig build test` also compiles the examples. For transport, parsing, or ownership
   changes, validate both Debug and `zig build test -Doptimize=ReleaseSafe`. Use
   allocation-failure checks for new owning structures and deterministic byte

@@ -35,13 +35,14 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "rust-overlay": "rust-overlay",
+        "ursula-overlay": "ursula-overlay",
         "zig-overlay": "zig-overlay"
       }
     },
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
+          "ursula-overlay",
           "nixpkgs"
         ]
       },
@@ -72,6 +73,27 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "ursula-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1790102740,
+        "narHash": "sha256-XsF5d7/nn+R2Nd5djQiyvdvH5jMNpfWOaob410/1Xbw=",
+        "owner": "rupurt",
+        "repo": "ursula-overlay",
+        "rev": "c5b905d3f8a6020827415ea70cfabe91ad220a88",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rupurt",
+        "repo": "ursula-overlay",
         "type": "github"
       }
     },

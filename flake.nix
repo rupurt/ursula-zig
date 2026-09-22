@@ -7,13 +7,13 @@
       url = "github:mitchellh/zig-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+    ursula-overlay = {
+      url = "github:rupurt/ursula-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, zig-overlay, rust-overlay, ... }:
+  outputs = { nixpkgs, zig-overlay, ursula-overlay, ... }:
     let
       systems = [
         "aarch64-darwin"
@@ -22,26 +22,16 @@
         "x86_64-linux"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      pkgsFor = system: import nixpkgs {
-        inherit system;
-        overlays = [ rust-overlay.overlays.default ];
+      packagesFor = system: {
+        inherit (ursula-overlay.packages.${system}) ursula ursulactl;
       };
-      packagesFor = system:
-        let
-          pkgs = pkgsFor system;
-          ursula = pkgs.callPackage ./nix/ursula.nix { };
-        in
-        {
-          inherit ursula;
-          ursulactl = pkgs.callPackage ./nix/ursulactl.nix { inherit ursula; };
-        };
     in
     {
       packages = forAllSystems packagesFor;
 
       devShells = forAllSystems (system:
         let
-          pkgs = pkgsFor system;
+          pkgs = nixpkgs.legacyPackages.${system};
           packages = packagesFor system;
         in
         {

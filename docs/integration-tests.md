@@ -70,31 +70,31 @@ well-behaved real server cannot supply.
 
 ## Release details and upgrades
 
-`nix/ursula.nix` uses `buildRustPackage` with a fixed GitHub source hash and Cargo
-dependency hash. It builds the `ursula` binary with the release's default features
-and Rust nightly `2026-06-01`, selected through the locked rust-overlay input.
-The build scripts are patched to use Nix's `protoc` rather than bundled Cargo
-platform executables. The installed CLI gets a `--help` smoke check. Upstream's
-network-dependent cluster tests are not run inside the Nix build sandbox; the
-Zig integration suite validates the installed server separately.
+The [ursula-overlay](https://github.com/rupurt/ursula-overlay) input owns the
+source-built server and CLI packages. This project's flake consumes and re-exports them; there
+are no local copies of their derivations. The overlay pins the release source,
+Cargo dependencies, Rust nightly, and Nixpkgs/rust-overlay inputs. It shares those
+pins between the two binaries and uses Nix's `protoc` for code generation.
 
-`nix/ursulactl.nix` derives a separate package from the same build definition,
-selecting Cargo package `ursula-ctl` and binary `ursulactl`. It shares the server's
-source, Cargo dependencies, Rust toolchain, and protoc patch, and smoke-tests the
-installed CLI with `--help`. Updating the shared release pins upgrades both tools.
+The overlay's `nix flake check` builds the packages and checks their installed
+CLIs with `--help`. Upstream's network-dependent cluster tests are not run in
+the Nix sandbox. This project's integration suite validates the installed server
+separately through the Zig client.
+
+The input uses `github:rupurt/ursula-overlay`, with a published revision pinned
+in `flake.lock`. No sibling checkout is required to build or test this client.
 
 To upgrade:
 
-1. Check upstream tags/releases, then update `version` and the source hash.
-2. Read the new tag's `rust-toolchain.toml` and update the nightly if needed.
-   Update `rust-overlay` in `flake.lock` only if the pinned overlay lacks it.
-3. Set `cargoHash` temporarily to `lib.fakeHash`, run `nix build .#ursula --no-link`,
-   and replace it with the actual hash Nix reports. Commit real hashes only.
-4. Build both packages with `nix build .#ursula .#ursulactl --no-link`, run
+1. Follow the release upgrade instructions in the overlay's README. Update and
+   validate the shared source, Cargo, and Rust pins there, then commit and publish
+   the change.
+2. Run `nix flake update ursula-overlay` in this repository to select that commit.
+3. Build both packages with `nix build .#ursula .#ursulactl --no-link`, run
    `just check` and `just test integration`, and check both suites with
    `-Doptimize=ReleaseSafe`. Evaluate all outputs with
    `nix flake check --all-systems --no-build`.
-5. Update this baseline and record any protocol discrepancies. Avoid updating
+4. Update this baseline and record any protocol discrepancies. Avoid updating
    unrelated Zig/nixpkgs inputs during a server upgrade.
 
 The first live run exposed stale create-stream documentation: v0.5.1 rejects

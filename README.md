@@ -33,9 +33,10 @@ their pins are updated.
 The shell supports Linux and macOS on x86_64 and aarch64.
 
 [Ursula v0.5.1](https://github.com/tonbo-io/ursula/releases/tag/v0.5.1), the latest
-tag checked on 2026-09-22, is built from source by `nix/ursula.nix`. It pins the
-release source, Cargo dependencies, and upstream's Rust nightly `2026-06-01`.
-`nix/ursulactl.nix` builds the CLI from the same release and shares those pins.
+tag checked on 2026-09-22, is built from source by the separate
+[ursula-overlay](https://github.com/rupurt/ursula-overlay) flake. It pins the release
+source, Cargo dependencies, and upstream's Rust nightly `2026-06-01`. Both the server and
+CLI share those pins; this repository consumes and re-exports the two packages.
 The first shell entry builds both tools; later entries reuse Nix's build results.
 Build the server separately with `nix build .#ursula --no-link`, or inspect its
 CLI with `nix run .#ursula -- --help`.
@@ -48,6 +49,15 @@ nix run .#ursulactl -- --help
 ```
 
 Inside `nix develop`, both `ursula` and `ursulactl` are on `PATH`.
+
+The overlay input uses `github:rupurt/ursula-overlay`, pinned to a published
+commit in `flake.lock`. Update it deliberately, then validate the client:
+
+```sh
+nix flake update ursula-overlay
+nix develop --command just check
+nix develop --command just test integration
+```
 
 If you use direnv with Nix support, the existing `.envrc` loads this shell after
 `direnv allow`. A single command can also run without entering an interactive
@@ -106,8 +116,7 @@ Include the updated `flake.lock` with any changes needed for the new compiler.
 - `build.zig`: library, unit-test, and integration-test build steps.
 - `build.zig.zon`: Zig package metadata.
 - `flake.nix` and `flake.lock`: development tools and their pinned versions.
-- `nix/ursula.nix`: source-built Ursula server and Rust toolchain pin.
-- `nix/ursulactl.nix`: operations CLI sharing the server's release and build inputs.
+- `ursula-overlay` input: external source-built server and CLI packages.
 - `justfile`: development commands.
 - `AGENTS.md`: guidance for contributors and coding agents.
 
