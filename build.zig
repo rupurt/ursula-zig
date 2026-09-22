@@ -21,6 +21,11 @@ pub fn build(b: *std.Build) void {
         .root_module = ursula,
     });
     const run_tests = b.addRunArtifact(unit_tests);
+    if (b.option(bool, "verbose-tests", "Use the terminal test runner for individual test output") orelse false) {
+        run_tests.test_runner_mode = false;
+        run_tests.stdio = .inherit;
+        run_tests.disable_zig_progress = true;
+    }
     const test_step = b.step("test", "Run library unit tests");
     test_step.dependOn(&run_tests.step);
 

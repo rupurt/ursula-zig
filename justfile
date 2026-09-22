@@ -6,9 +6,12 @@ default:
 build:
     zig build
 
-# Run the library's unit tests.
+# Run unit tests, printing each test name and result.
 test:
-    zig build test
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # A pipe makes Zig print every test instead of replacing terminal progress.
+    zig build test -Dverbose-tests 2>&1 | cat
 
 # Format Zig source and build files.
 fmt:

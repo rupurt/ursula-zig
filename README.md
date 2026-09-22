@@ -43,9 +43,12 @@ There are five tasks:
 | --- | --- |
 | `just` | List available tasks. |
 | `just build` | Build the static library into `zig-out/lib/`. |
-| `just test` | Run deterministic library tests. |
+| `just test` | Run tests and print each test name and result. |
 | `just fmt` | Format Zig sources and build files. |
 | `just check` | Check formatting, build, and run tests. |
+
+`just test` always executes the tests and retains their full output, even when the
+compiled test binary is cached. `just check` uses Zig's normal concise test output.
 
 Tests use an ephemeral loopback HTTP fixture and require local socket access,
 but do not require an Ursula server or external network access. To try Ursula

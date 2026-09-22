@@ -26,6 +26,8 @@ assume every protocol operation exists on the server.
   working with Zig APIs that change between releases.
 - Use `just build`, `just test`, `just fmt`, and `just check`. Bare `just` lists
   tasks. Keep the justfile at five recipes or fewer.
+- `just test` prints every test name and result; `just check` keeps concise output.
+  The verbose recipe uses Bash `pipefail` to preserve failures through its output pipe.
 - Run `just fmt` after Zig edits and `just check` before handing off code changes.
   Report checks that could not run and explain the actual blocker.
 - Update the toolchain intentionally with `nix flake update zig-overlay`, rerun
