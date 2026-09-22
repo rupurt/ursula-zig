@@ -97,8 +97,9 @@ not impose a timeout; applications must choose their own deadline policy.
 Redirects are returned unchanged, including the latest-snapshot `307`. Inspect
 `Location` and validate the destination before deliberately issuing another request.
 Authorization is never forwarded automatically. HTTPS certificate validation uses
-Zig's standard HTTP client; tests currently cover HTTP on loopback, not a live
-Ursula cluster or TLS endpoint.
+Zig's standard HTTP client. Tests cover HTTP loopback fixtures and a real local
+Ursula server; TLS and multi-node clusters are not covered. See
+[integration testing](integration-tests.md) for the opt-in server suite.
 
 ## Live SSE reads
 

@@ -5,7 +5,8 @@
 Build a Zig client library for Ursula's public durable streams API. The repository
 implements typed protocol operations, validated request construction, HTTP
 transport using caller-supplied `std.Io`, and incremental SSE decoding. Unit and
-loopback tests cover these layers. Consult `docs/architecture.md` for their ownership
+loopback tests cover these layers; opt-in integration tests use a real local
+Ursula server. Consult `docs/architecture.md` for their ownership
 rules, and keep the README accurate as functionality lands.
 
 ## Sources of truth
@@ -28,6 +29,9 @@ assume every protocol operation exists on the server.
   tasks. Keep the justfile at five recipes or fewer.
 - `just test` prints every test name and result; `just check` keeps concise output.
   The verbose recipe uses Bash `pipefail` to preserve failures through its output pipe.
+- `just test integration` runs the live suite. Read `docs/integration-tests.md`
+  before changing its fixture or the server derivation. The shell supplies Python
+  and source-built Ursula; `nix build .#ursula --no-link` builds just the server.
 - Run `just fmt` after Zig edits and `just check` before handing off code changes.
   Report checks that could not run and explain the actual blocker.
 - Update the toolchain intentionally with `nix flake update zig-overlay`, rerun
@@ -71,7 +75,14 @@ assume every protocol operation exists on the server.
   cleanup paths where relevant. Use `std.testing.allocator` for allocation tests.
 - Keep default unit tests deterministic and independent of a running server.
   The loopback fixture requires local sockets but no external service. Keep live
-  Ursula integration tests opt-in and document their server requirements.
+  Ursula integration tests opt-in. Use the launcher-owned server, never an existing
+  deployment. Preserve readiness/test deadlines, failure logs, signal cleanup, and
+  fresh state on every invocation. Give independent tests distinct bucket names.
+- Run `just test integration` after changing wire behavior or the Ursula pin.
+  Keep the release tag, source hash, Cargo hash, and Rust nightly in sync; verify
+  the latest upstream tag when upgrading. Do not bypass nightly requirements with
+  `RUSTC_BOOTSTRAP`. Match observed release behavior when endpoint docs are stale,
+  and document discrepancies with links to the tagged source.
 - `zig build test` also compiles the examples. For transport, parsing, or ownership
   changes, validate both Debug and `zig build test -Doptimize=ReleaseSafe`. Use
   allocation-failure checks for new owning structures and deterministic byte

@@ -29,8 +29,13 @@ The documentation is a moving target; check it again when adding behavior.
 ## Protocol decisions
 
 IDs are raw input, percent-encoded exactly once as path components. Buckets follow
-`[a-z0-9_-]{4,64}` and stream IDs have a 122-byte UTF-8 limit. Dot path segments are
-rejected. A base URL may include a deployment prefix but no credentials, query, or
+`[a-z0-9_-]{4,64}`. The combined UTF-8 `bucket/stream` identity, including the slash,
+has a 122-byte limit. Stream names cannot contain slash, NUL, or `..`, or equal
+the reserved name `streams`. The client also rejects `.` to prevent URL path
+normalization. These rules match the v0.5.1 server's
+[validator](https://github.com/tonbo-io/ursula/blob/v0.5.1/crates/ursula-stream/src/validate.rs);
+the create-stream endpoint documentation understates the restrictions.
+A base URL may include a deployment prefix but no credentials, query, or
 fragment. Credentials belong in an explicit authorization header.
 
 Offsets and cursors remain opaque strings. Clients return them unchanged to the
@@ -58,6 +63,13 @@ Ursula deployment. Transport tests use a deterministic loopback HTTP
 fixture, including failure, size limits, connection reuse, cancellation, abandoned
 live bodies, and allocation-failure cleanup. They need local socket access, not an
 Ursula deployment. Both usage examples are compiled as part of the test step.
+
+`just test integration` separately runs black-box tests against source-built
+Ursula v0.5.1. A Python standard-library launcher owns a fresh loopback server,
+waits for readiness, passes its URL to the Zig tests, enforces deadlines, and
+stops both processes on failure or interruption. The tests exercise the public
+client with `std.testing.io` and the testing allocator. See
+[integration testing](integration-tests.md) for coverage and upgrade instructions.
 
 ## Transport policy
 
@@ -104,7 +116,7 @@ errors are terminal, so callers cannot accidentally continue a corrupted frame.
 
 ## Further work
 
-Live Ursula/TLS conformance tests, multipart decoding, typed batch acknowledgement
+TLS and multi-node durability tests, multipart decoding, typed batch acknowledgement
 parsing, optional higher-level reconnect policy, and streamed request uploads are
 not implemented. Add them as separate tested APIs rather than changing raw response
 semantics or introducing hidden retry behavior.
