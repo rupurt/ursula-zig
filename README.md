@@ -24,10 +24,18 @@ just
 just check
 ```
 
-The shell includes `just` and the Zig `master` nightly from
-[zig-overlay](https://github.com/mitchellh/zig-overlay). `flake.lock` pins the
-inputs, so entering the shell uses the same compiler until the lock is updated.
+The shell includes `just`, Python 3, the Zig `master` nightly from
+[zig-overlay](https://github.com/mitchellh/zig-overlay), and the Ursula server.
+`flake.lock` pins the inputs, so entering the shell uses the same tools until
+their pins are updated.
 The shell supports Linux and macOS on x86_64 and aarch64.
+
+[Ursula v0.5.1](https://github.com/tonbo-io/ursula/releases/tag/v0.5.1), the latest
+tag checked on 2026-09-22, is built from source by `nix/ursula.nix`. It pins the
+release source, Cargo dependencies, and upstream's Rust nightly `2026-06-01`.
+The first shell entry builds the server; later entries reuse Nix's build result.
+Build it separately with `nix build .#ursula --no-link`, or inspect its CLI with
+`nix run .#ursula -- --help`.
 
 If you use direnv with Nix support, the existing `.envrc` loads this shell after
 `direnv allow`. A single command can also run without entering an interactive
