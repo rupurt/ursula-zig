@@ -12,10 +12,10 @@ test:
 
 # Format Zig source and build files.
 fmt:
-    zig fmt build.zig build.zig.zon src
+    zig fmt build.zig build.zig.zon src examples
 
 # Check formatting, build the library, and run tests.
 check:
-    zig fmt --check build.zig build.zig.zon src
+    zig fmt --check build.zig build.zig.zon src examples
     zig build
     zig build test

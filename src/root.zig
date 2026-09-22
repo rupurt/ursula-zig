@@ -1,4 +1,8 @@
 //! A Zig client for Ursula's durable streams HTTP API.
+pub const Client = @import("Client.zig");
+pub const Response = @import("response.zig").Response;
+pub const ResponseHead = @import("response.zig").Head;
+pub const Metadata = @import("response.zig").Metadata;
 pub const protocol = @import("protocol.zig");
 pub const PreparedRequest = @import("request.zig");
 pub const Stream = protocol.Stream;

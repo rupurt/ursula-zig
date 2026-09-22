@@ -3,8 +3,8 @@
 ## Purpose and current state
 
 Build a Zig client library for Ursula's public durable streams API. The repository
-currently implements typed protocol operations and pure request construction with
-unit tests. Consult `docs/architecture.md` for the implementation layers. Keep the README accurate as
+implements typed protocol operations, validated request construction, and an HTTP
+transport using caller-supplied `std.Io`, with unit and loopback tests. Consult `docs/architecture.md` for the implementation layers. Keep the README accurate as
 functionality lands.
 
 ## Sources of truth
@@ -37,6 +37,8 @@ assume every protocol operation exists on the server.
 - Read `docs/architecture.md` before changing transport, ownership, or protocol behavior.
 - Expose the public library API through `src/root.zig` and the `ursula` build
   module. Keep implementation modules under `src/`.
+- Accept `std.Io` from callers; do not create a hidden runtime or use legacy
+  blocking networking APIs. Preserve cancellation and stable request addresses.
 - Prefer the Zig standard library and keep dependencies minimal.
 - Accept an allocator where allocation is needed. Document who owns returned
   buffers, their lifetimes, and how callers release resources. Use `defer` and

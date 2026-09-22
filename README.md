@@ -3,10 +3,13 @@
 A Zig client library for [Ursula](https://ursula.tonbo.io/), a durable streams
 service with an HTTP API and Server-Sent Events (SSE) for live reads.
 
-The first implementation layer provides typed operations and validated HTTP request
-construction for the public stream API. Network transport and live SSE reads are
-being added next. See [the architecture notes](docs/architecture.md) for ownership,
-protocol choices, and the implementation roadmap.
+The client supports bucket creation; stream creation, append, close, read, HEAD,
+and deletion; long-polling; attributes; append batches; snapshots; retention; and
+raw multipart bootstrap responses. It accepts the caller's `std.Io` and uses Zig's
+HTTP client for HTTP/HTTPS. Incremental SSE decoding is the next implementation layer.
+
+See [the architecture notes](docs/architecture.md) for ownership and protocol
+choices, and [client usage](docs/usage.md) for examples and limits.
 
 ## Development
 
@@ -45,7 +48,8 @@ There are five tasks:
 | `just fmt` | Format Zig sources and build files. |
 | `just check` | Check formatting, build, and run tests. |
 
-Builds and unit tests do not require an Ursula server. To try Ursula itself, follow
+Tests use an ephemeral loopback HTTP fixture and require local socket access,
+but do not require an Ursula server or external network access. To try Ursula itself, follow
 its [quick start](https://ursula.tonbo.io/docs/quick-start/).
 
 Update the pinned Zig nightly deliberately, then check compatibility:
@@ -59,7 +63,11 @@ Include the updated `flake.lock` with any changes needed for the new compiler.
 
 ## Layout
 
-- `src/root.zig`: library entry point, exposed as the `ursula` Zig module.
+- `src/root.zig`: public `ursula` module.
+- `src/protocol.zig` and `src/request.zig`: typed operations and request validation.
+- `src/Client.zig` and `src/response.zig`: I/O transport and owned responses.
+- `examples/read.zig`: compiled, read-only client example.
+- `docs/`: architecture and client usage.
 - `build.zig`: library and unit-test build steps.
 - `build.zig.zon`: Zig package metadata.
 - `flake.nix` and `flake.lock`: development tools and their pinned versions.
