@@ -1,0 +1,14 @@
+.{
+    .name = .ursula_zig,
+    .version = "0.0.0",
+    .fingerprint = 0xc7b5e3bd1461bead, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.0-dev.2251+1175a3e99",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
