@@ -19,10 +19,12 @@ Both test recipes execute on every invocation, including when compilation is
 cached. `just check` remains independent of a running server. Integration tests
 also run directly through `zig build test-integration` inside the shell.
 
-`nix build .#ursula --no-link` builds the server separately. `nix run .#ursula --
---help` shows its CLI. The default shell supplies the resulting `ursula` binary,
-Python 3 for the launcher, Zig, and just. The first build downloads the pinned
-sources and toolchains; tests themselves only use loopback networking.
+`nix build .#ursula --no-link` builds the server separately.
+`nix run .#ursula -- --help` shows its CLI. The operations CLI is available through
+`nix build .#ursulactl --no-link` and `nix run .#ursulactl -- --help`.
+The default shell supplies both binaries, Python 3 for the launcher, Zig, and
+just. The first build downloads the pinned sources and toolchains; tests
+themselves only use loopback networking.
 
 ## Fixture and coverage
 
@@ -76,6 +78,11 @@ platform executables. The installed CLI gets a `--help` smoke check. Upstream's
 network-dependent cluster tests are not run inside the Nix build sandbox; the
 Zig integration suite validates the installed server separately.
 
+`nix/ursulactl.nix` derives a separate package from the same build definition,
+selecting Cargo package `ursula-ctl` and binary `ursulactl`. It shares the server's
+source, Cargo dependencies, Rust toolchain, and protoc patch, and smoke-tests the
+installed CLI with `--help`. Updating the shared release pins upgrades both tools.
+
 To upgrade:
 
 1. Check upstream tags/releases, then update `version` and the source hash.
@@ -83,8 +90,9 @@ To upgrade:
    Update `rust-overlay` in `flake.lock` only if the pinned overlay lacks it.
 3. Set `cargoHash` temporarily to `lib.fakeHash`, run `nix build .#ursula --no-link`,
    and replace it with the actual hash Nix reports. Commit real hashes only.
-4. Build the server, run `just check` and `just test integration`, and check both
-   suites with `-Doptimize=ReleaseSafe`. Evaluate all outputs with
+4. Build both packages with `nix build .#ursula .#ursulactl --no-link`, run
+   `just check` and `just test integration`, and check both suites with
+   `-Doptimize=ReleaseSafe`. Evaluate all outputs with
    `nix flake check --all-systems --no-build`.
 5. Update this baseline and record any protocol discrepancies. Avoid updating
    unrelated Zig/nixpkgs inputs during a server upgrade.

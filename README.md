@@ -26,7 +26,8 @@ just check
 ```
 
 The shell includes `just`, Python 3, the Zig `master` nightly from
-[zig-overlay](https://github.com/mitchellh/zig-overlay), and the Ursula server.
+[zig-overlay](https://github.com/mitchellh/zig-overlay), the Ursula server, and its
+`ursulactl` operations CLI.
 `flake.lock` pins the inputs, so entering the shell uses the same tools until
 their pins are updated.
 The shell supports Linux and macOS on x86_64 and aarch64.
@@ -34,9 +35,19 @@ The shell supports Linux and macOS on x86_64 and aarch64.
 [Ursula v0.5.1](https://github.com/tonbo-io/ursula/releases/tag/v0.5.1), the latest
 tag checked on 2026-09-22, is built from source by `nix/ursula.nix`. It pins the
 release source, Cargo dependencies, and upstream's Rust nightly `2026-06-01`.
-The first shell entry builds the server; later entries reuse Nix's build result.
-Build it separately with `nix build .#ursula --no-link`, or inspect its CLI with
-`nix run .#ursula -- --help`.
+`nix/ursulactl.nix` builds the CLI from the same release and shares those pins.
+The first shell entry builds both tools; later entries reuse Nix's build results.
+Build the server separately with `nix build .#ursula --no-link`, or inspect its
+CLI with `nix run .#ursula -- --help`.
+
+Build and run the operations CLI separately:
+
+```sh
+nix build .#ursulactl --no-link
+nix run .#ursulactl -- --help
+```
+
+Inside `nix develop`, both `ursula` and `ursulactl` are on `PATH`.
 
 If you use direnv with Nix support, the existing `.envrc` loads this shell after
 `direnv allow`. A single command can also run without entering an interactive
@@ -96,6 +107,7 @@ Include the updated `flake.lock` with any changes needed for the new compiler.
 - `build.zig.zon`: Zig package metadata.
 - `flake.nix` and `flake.lock`: development tools and their pinned versions.
 - `nix/ursula.nix`: source-built Ursula server and Rust toolchain pin.
+- `nix/ursulactl.nix`: operations CLI sharing the server's release and build inputs.
 - `justfile`: development commands.
 - `AGENTS.md`: guidance for contributors and coding agents.
 

@@ -26,16 +26,23 @@
         inherit system;
         overlays = [ rust-overlay.overlays.default ];
       };
-      ursulaFor = system: (pkgsFor system).callPackage ./nix/ursula.nix { };
+      packagesFor = system:
+        let
+          pkgs = pkgsFor system;
+          ursula = pkgs.callPackage ./nix/ursula.nix { };
+        in
+        {
+          inherit ursula;
+          ursulactl = pkgs.callPackage ./nix/ursulactl.nix { inherit ursula; };
+        };
     in
     {
-      packages = forAllSystems (system: {
-        ursula = ursulaFor system;
-      });
+      packages = forAllSystems packagesFor;
 
       devShells = forAllSystems (system:
         let
           pkgs = pkgsFor system;
+          packages = packagesFor system;
         in
         {
           default = pkgs.mkShell {
@@ -43,7 +50,8 @@
               zig-overlay.packages.${system}.master
               pkgs.just
               pkgs.python3
-              (ursulaFor system)
+              packages.ursula
+              packages.ursulactl
             ];
           };
         });

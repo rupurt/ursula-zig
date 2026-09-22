@@ -31,7 +31,10 @@ assume every protocol operation exists on the server.
   The verbose recipe uses Bash `pipefail` to preserve failures through its output pipe.
 - `just test integration` runs the live suite. Read `docs/integration-tests.md`
   before changing its fixture or the server derivation. The shell supplies Python
-  and source-built Ursula; `nix build .#ursula --no-link` builds just the server.
+  and source-built Ursula and `ursulactl`; `nix build .#ursula --no-link` builds
+  just the server, and `nix build .#ursulactl --no-link` builds just the CLI.
+  `nix/ursulactl.nix` inherits the server's release, Cargo dependencies, Rust
+  toolchain, and protoc patch; keep those pins shared.
 - Run `just fmt` after Zig edits and `just check` before handing off code changes.
   Report checks that could not run and explain the actual blocker.
 - Update the toolchain intentionally with `nix flake update zig-overlay`, rerun
