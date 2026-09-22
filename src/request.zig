@@ -215,11 +215,15 @@ const Builder = struct {
 
     fn stream(b: *Builder, s: p.Stream) !void {
         try validateBucket(s.bucket);
-        if (s.name.len == 0 or s.name.len > 122 or !std.unicode.utf8ValidateSlice(s.name) or std.mem.findScalar(u8, s.name, 0) != null) return error.InvalidStream;
-        var segments = std.mem.splitScalar(u8, s.name, '/');
-        while (segments.next()) |part| {
-            if (std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return error.InvalidStream;
-        }
+        // Ursula caps the full bucket/stream identity, including its separator.
+        // Bucket length is already validated, so the subtraction cannot underflow.
+        if (s.name.len == 0 or s.name.len > 121 - s.bucket.len or
+            !std.unicode.utf8ValidateSlice(s.name) or
+            std.mem.findScalar(u8, s.name, 0) != null or
+            std.mem.findScalar(u8, s.name, '/') != null or
+            std.mem.find(u8, s.name, "..") != null or
+            std.mem.eql(u8, s.name, ".") or std.mem.eql(u8, s.name, "streams"))
+            return error.InvalidStream;
         try b.segment(s.bucket);
         try b.segment(s.name);
     }

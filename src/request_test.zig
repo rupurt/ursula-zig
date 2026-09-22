@@ -41,11 +41,11 @@ test "routes and HTTP methods match Ursula endpoints" {
 
 test "raw stream IDs and opaque read tokens are encoded exactly once" {
     var r = try Request.init(t.allocator, base, .{ .read = .{
-        .stream = .{ .bucket = "demo", .name = "a/b %?雪" },
+        .stream = .{ .bucket = "demo", .name = "a%2Fb %?雪" },
         .options = .{ .position = .{ .cursor = "a+b/=&%20" }, .live = .long_poll },
     } });
     defer r.deinit();
-    try t.expectEqualStrings("https://example.test/api/demo/a%2Fb%20%25%3F%E9%9B%AA?cursor=a%2Bb%2F%3D%26%2520&live=long-poll", r.url);
+    try t.expectEqualStrings("https://example.test/api/demo/a%252Fb%20%25%3F%E9%9B%AA?cursor=a%2Bb%2F%3D%26%2520&live=long-poll", r.url);
 }
 
 test "create headers cover lifetime identity and attributes" {
@@ -117,9 +117,21 @@ test "invalid addresses and identifiers fail before I/O" {
     for ([_][]const u8{ "a", "UPPER", "de/mo", "demo?x=1" }) |bucket| {
         try t.expectError(error.InvalidBucket, Request.init(t.allocator, base, .{ .create_bucket = bucket }));
     }
-    for ([_][]const u8{ "", "..", ".", "a/../b", "a\x00b", "\xff", &@as([123]u8, @splat('a')) }) |name| {
+    for ([_][]const u8{ "", "..", ".", "a/b", "a/../b", "a..b", "streams", "a\x00b", "\xff", &@as([123]u8, @splat('a')) }) |name| {
         try t.expectError(error.InvalidStream, Request.init(t.allocator, base, .{ .delete_stream = .{ .bucket = "demo", .name = name } }));
     }
+}
+
+test "stream identity limit counts bucket separator and UTF-8 bytes" {
+    const name = @as([114]u8, @splat('a')) ++ "雪"; // 117 bytes, not 115.
+    var exact = try Request.init(t.allocator, base, .{ .head = .{ .stream = .{ .bucket = "demo", .name = name } } });
+    defer exact.deinit();
+    try t.expectError(error.InvalidStream, Request.init(t.allocator, base, .{ .head = .{ .stream = .{ .bucket = "demos", .name = name } } }));
+    const bucket: [64]u8 = @splat('b');
+    const max_name: [57]u8 = @splat('n');
+    var long_bucket = try Request.init(t.allocator, base, .{ .head = .{ .stream = .{ .bucket = &bucket, .name = &max_name } } });
+    defer long_bucket.deinit();
+    try t.expectError(error.InvalidStream, Request.init(t.allocator, base, .{ .head = .{ .stream = .{ .bucket = &bucket, .name = max_name ++ "n" } } }));
 }
 
 test "header injection and incomplete producer identity are rejected" {

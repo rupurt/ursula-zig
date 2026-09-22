@@ -1,6 +1,8 @@
 //! Typed inputs for Ursula's public HTTP API. All input slices are borrowed.
 
 /// A bucket and stream ID, supplied as raw, unescaped UTF-8.
+/// The combined bucket/stream identity is at most 122 bytes. Stream names cannot
+/// contain slash, NUL, or "..", or equal "." or the reserved name "streams".
 pub const Stream = struct { bucket: []const u8, name: []const u8 };
 
 /// Explicit identity for an append attempt. Reuse all fields and the same payload
