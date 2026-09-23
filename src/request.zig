@@ -67,11 +67,11 @@ pub fn init(gpa: Allocator, base_url: []const u8, operation: p.Operation) !Prepa
                 .beginning => try b.query("offset", "-1"),
                 .now => try b.query("offset", "now"),
                 .offset => |s| try b.queryToken("offset", s),
-                .cursor => |s| try b.queryToken("cursor", s),
                 .record => |n| try b.numberQuery("record", n),
                 .record_now => try b.query("record", "now"),
                 .tail_records => |n| try b.numberQuery("tail_records", n),
             }
+            if (o.cursor) |s| try b.queryToken("cursor", s);
             switch (o.live) {
                 .catch_up => {},
                 .long_poll => try b.query("live", "long-poll"),

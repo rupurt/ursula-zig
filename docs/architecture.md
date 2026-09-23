@@ -6,7 +6,8 @@ The implementation follows the [Ursula API overview](https://ursula.tonbo.io/doc
 and its linked endpoint pages, checked on 2026-09-22. The
 [extensions specification](https://ursula.tonbo.io/docs/specs/extensions/) supplies
 batch framing, record coordinates, attributes, and snapshot details. Ursula's
-endpoint documentation takes precedence where it differs from the broader protocol.
+endpoint documentation is qualified by verified behavior of the pinned server
+where it conflicts with the protocol; known discrepancies are recorded below.
 The documentation is a moving target; check it again when adding behavior.
 
 ## Layers and ownership
@@ -39,9 +40,22 @@ A base URL may include a deployment prefix but no credentials, query, or
 fragment. Credentials belong in an explicit authorization header.
 
 Offsets and cursors remain opaque strings. Clients return them unchanged to the
-server. Only JSON record ordinals and producer counters are numeric. Producer
+server, but they serve different purposes: `Position` selects the byte/record
+coordinate, while `ReadOptions.cursor` echoes a cache token alongside it. A cursor
+is neither a checkpoint nor a stream-incarnation guard. Only JSON record ordinals
+and producer counters are numeric. Producer
 identity is explicit and counters are bounded to `2^53 - 1`. There are no automatic
 write retries or producer-sequence mutations.
+
+Ursula v0.5.1's [read guide](https://github.com/tonbo-io/ursula/blob/v0.5.1/docs/web/src/content/docs/pages/api/read.mdx)
+calls cursor an alternative to offset, and its
+[offsets guide](https://github.com/tonbo-io/ursula/blob/v0.5.1/docs/web/src/content/docs/pages/concepts/offsets.mdx)
+claims stream-incarnation protection. Direct HTTP and client tests instead show
+cursor-only catch-up restarting at zero and cursor-only long-poll returning 400.
+The [server](https://github.com/tonbo-io/ursula/blob/v0.5.1/crates/ursula/src/lib.rs#L3050)
+and the [protocol's sections 5.7/8.1](https://github.com/tonbo-io/ursula/blob/v0.5.1/docs/web/src/content/docs/pages/specs/durable-stream.mdx)
+use a position plus a separate cursor. The client follows that separation; no
+promise of detecting deleted/recreated streams is inferred from a cursor.
 
 Append-batch sends independent length-prefixed records. Its outer HTTP success
 status does not establish success for every frame: callers must inspect the JSON
@@ -106,7 +120,8 @@ coordinates and unknown future fields. NDJSON record assembly is the caller's jo
 
 Do not treat `upToDate` or transport EOF as stream closure. Persist a control
 checkpoint only after applying preceding data. Reconnect from the last applied
-cursor or offset, unless `streamClosed` is true. Automatic reconnect, credential
+offset or record position, echoing the cursor separately when supplied, unless
+`streamClosed` is true. Automatic reconnect, credential
 refresh, durable checkpoint storage, and retry backoff are application policies.
 
 The decoder defaults to 64 KiB lines and 1 MiB events. The event budget counts

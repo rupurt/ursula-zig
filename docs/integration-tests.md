@@ -60,6 +60,9 @@ checking allocator to cover:
 - Text and binary live SSE, with an initial control event synchronizing the
   append; data must arrive before a matching terminal closure checkpoint.
 - Long-poll reads alongside concurrent writes.
+- Long-poll continuation with offset plus cursor and record plus cursor, checking
+  that only the next JSON record is returned; SSE resumption with offset plus
+  cursor, checking that earlier data is not repeated before closure.
 
 The suite has been run in Debug and ReleaseSafe on x86_64 Linux. The flake also
 evaluates on aarch64 Linux and both macOS architectures; runtime testing on those
@@ -104,3 +107,10 @@ now validates those rules, backed by unit boundary tests and the tagged
 [server validator](https://github.com/tonbo-io/ursula/blob/v0.5.1/crates/ursula-stream/src/validate.rs).
 Live snapshot redirects contain absolute URLs; the client returns `Location`
 unchanged and leaves validation and following the redirect to the caller.
+
+Cursor continuation exposed another documentation discrepancy: v0.5.1 treats
+cursor as a cache token, not a read position or incarnation guard. The public API
+now models it separately from offset/record position. Unit tests cover independent
+token encoding and validation; the live continuation tests exercise the combined
+requests. See [the protocol notes](architecture.md#protocol-decisions) and
+[migration instructions](usage.md#read-continuation-and-cursor-migration).

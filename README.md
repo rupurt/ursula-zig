@@ -16,6 +16,10 @@ and TLS integration are not yet covered.
 See [the architecture notes](docs/architecture.md) for ownership and protocol
 choices, and [client usage](docs/usage.md) for examples and limits.
 
+Read continuation uses an offset or record position with a separate optional
+cache cursor. `Position.cursor` has been removed; see the
+[migration instructions](docs/usage.md#read-continuation-and-cursor-migration).
+
 ## Development
 
 Install Nix with `nix-command` and `flakes` enabled, then enter the development

@@ -275,3 +275,76 @@ test "integration: long-poll receives a concurrent append" {
     try discard(&c, .{ .append = .{ .stream = stream, .body = "wake", .options = .{ .closed = true } } }, .no_content);
     try read.await(t.io);
 }
+
+fn cursorResume(record_position: bool) !void {
+    var c = try client();
+    defer c.deinit();
+    const stream: ursula.Stream = .{ .bucket = if (record_position) "cursor_record" else "cursor_offset", .name = "events" };
+    try create(&c, stream, .{ .content_type = "application/json", .body = "{\"n\":1}" });
+    var first = try send(&c, .{ .read = .{ .stream = stream, .options = .{
+        .position = if (record_position) .{ .record = 0 } else .beginning,
+        .live = .long_poll,
+    } } }, .ok);
+    defer first.deinit();
+    try t.expectEqualStrings("{\"n\":1}\n", first.body);
+    const meta = try first.head.metadata();
+    const cursor = meta.cursor orelse return error.MissingCursor;
+    try discard(&c, .{ .append = .{ .stream = stream, .body = "{\"n\":2}", .options = .{ .content_type = "application/json" } } }, .no_content);
+    var next = try send(&c, .{ .read = .{ .stream = stream, .options = .{
+        .position = if (record_position)
+            .{ .record = meta.record_next orelse return error.MissingRecord }
+        else
+            .{ .offset = meta.next_offset orelse return error.MissingOffset },
+        .cursor = cursor,
+        .live = .long_poll,
+    } } }, .ok);
+    defer next.deinit();
+    try t.expectEqualStrings("{\"n\":2}\n", next.body);
+    try t.expect((try next.head.metadata()).cursor != null);
+}
+
+test "integration: long-poll resumes with offset plus cursor without repeating records" {
+    try cursorResume(false);
+}
+
+test "integration: long-poll resumes with record plus cursor without repeating records" {
+    try cursorResume(true);
+}
+
+test "integration: SSE resumes with offset plus cursor and receives only new data" {
+    var c = try client();
+    defer c.deinit();
+    const stream: ursula.Stream = .{ .bucket = "cursor_sse", .name = "events" };
+    try create(&c, stream, .{ .content_type = "text/plain", .body = "first" });
+    var first = try send(&c, .{ .read = .{ .stream = stream, .options = .{ .live = .long_poll } } }, .ok);
+    defer first.deinit();
+    try t.expectEqualStrings("first", first.body);
+    const meta = try first.head.metadata();
+    try discard(&c, .{ .append = .{ .stream = stream, .body = "second", .options = .{ .content_type = "text/plain", .closed = true } } }, .no_content);
+    const exchange = try c.open(.{ .read = .{ .stream = stream, .options = .{
+        .position = .{ .offset = meta.next_offset orelse return error.MissingOffset },
+        .cursor = meta.cursor orelse return error.MissingCursor,
+        .live = .sse,
+    } } });
+    defer exchange.deinit();
+    try exchange.head.requireSuccess();
+    var decoder = try ursula.sse.Decoder.fromHead(t.allocator, exchange.body, exchange.head, .{});
+    defer decoder.deinit();
+    var received: std.ArrayList(u8) = .empty;
+    defer received.deinit(t.allocator);
+    var closed = false;
+    while (try decoder.next()) |event| {
+        if (std.mem.eql(u8, event.name, "data")) {
+            try received.appendSlice(t.allocator, event.data);
+        } else if (std.mem.eql(u8, event.name, "control")) {
+            var control = try event.parseControl(t.allocator);
+            defer control.deinit();
+            if (control.value.streamClosed) {
+                try t.expectEqualStrings("second", received.items);
+                closed = true;
+            }
+        } else return error.UnexpectedSseEvent;
+    }
+    try t.expect(closed);
+    try t.expectEqualStrings("second", received.items);
+}
