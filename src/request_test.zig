@@ -42,10 +42,10 @@ test "routes and HTTP methods match Ursula endpoints" {
 test "raw stream IDs and opaque read tokens are encoded exactly once" {
     var r = try Request.init(t.allocator, base, .{ .read = .{
         .stream = .{ .bucket = "demo", .name = "a%2Fb %?雪" },
-        .options = .{ .position = .{ .cursor = "a+b/=&%20" }, .live = .long_poll },
+        .options = .{ .position = .{ .offset = "offset/+%42" }, .cursor = "a+b/=&%20", .live = .long_poll },
     } });
     defer r.deinit();
-    try t.expectEqualStrings("https://example.test/api/demo/a%252Fb%20%25%3F%E9%9B%AA?cursor=a%2Bb%2F%3D%26%2520&live=long-poll", r.url);
+    try t.expectEqualStrings("https://example.test/api/demo/a%252Fb%20%25%3F%E9%9B%AA?offset=offset%2F%2B%2542&cursor=a%2Bb%2F%3D%26%2520&live=long-poll", r.url);
 }
 
 test "create headers cover lifetime identity and attributes" {
@@ -83,21 +83,44 @@ test "append preconditions and close-only requests" {
 test "read variants include record limits and conditional SSE headers" {
     var r = try Request.init(t.allocator, base, .{ .read = .{ .stream = stream, .options = .{
         .position = .record_now,
+        .cursor = "previous",
         .live = .sse,
         .max_records = 10,
         .envelope = true,
         .if_none_match = "\"etag\"",
     } } });
     defer r.deinit();
-    try t.expectEqualStrings("https://example.test/api/demo/hello?record=now&live=sse&max_records=10&record_view=envelope", r.url);
+    try t.expectEqualStrings("https://example.test/api/demo/hello?record=now&cursor=previous&live=sse&max_records=10&record_view=envelope", r.url);
     try t.expectEqualStrings("text/event-stream", header(r, "Accept").?);
     try t.expectEqualStrings("\"etag\"", header(r, "If-None-Match").?);
     const invalid = [_]p.ReadOptions{
         .{ .max_records = 10 },                                                .{ .envelope = true },
         .{ .position = .{ .record = 0 }, .max_records = 10, .max_bytes = 10 }, .{ .position = .{ .offset = "" } },
-        .{ .position = .{ .cursor = "" } },
+        .{ .cursor = "" },
     };
     for (invalid) |options| try t.expectError(error.InvalidReadOptions, Request.init(t.allocator, base, .{ .read = .{ .stream = stream, .options = options } }));
+}
+
+test "cursor supplements every position and never suppresses its coordinate" {
+    const Case = struct { position: p.Position, query: []const u8 };
+    for ([_]Case{
+        .{ .position = .beginning, .query = "offset=-1" },
+        .{ .position = .now, .query = "offset=now" },
+        .{ .position = .{ .offset = "00008" }, .query = "offset=00008" },
+        .{ .position = .{ .record = 1 }, .query = "record=1" },
+        .{ .position = .record_now, .query = "record=now" },
+        .{ .position = .{ .tail_records = 2 }, .query = "tail_records=2" },
+    }) |case| {
+        var r = try Request.init(t.allocator, base, .{ .read = .{ .stream = stream, .options = .{
+            .position = case.position,
+            .cursor = "cache-token",
+            .live = .long_poll,
+        } } });
+        defer r.deinit();
+        const expected = try t.allocator.print("https://example.test/api/demo/hello?{s}&cursor=cache-token&live=long-poll", .{case.query});
+        defer t.allocator.free(expected);
+        try t.expectEqualStrings(expected, r.url);
+    }
 }
 
 test "append-batch encodes independent big-endian frames" {
@@ -157,6 +180,12 @@ fn allocationCase(allocator: std.mem.Allocator) !void {
     try t.expectEqualStrings("2027-01-01T00:00:00Z", header(r, "Stream-Expires-At").?);
     var batch = try Request.init(allocator, base, .{ .append_batch = .{ .stream = stream, .frames = &.{ "a", "b" } } });
     defer batch.deinit();
+    var read = try Request.init(allocator, base, .{ .read = .{ .stream = stream, .options = .{
+        .position = .{ .offset = "opaque/+offset" },
+        .cursor = "separate/cache+token",
+        .live = .long_poll,
+    } } });
+    defer read.deinit();
 }
 
 test "request construction cleans up every allocation failure" {

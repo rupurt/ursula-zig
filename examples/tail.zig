@@ -33,7 +33,8 @@ pub fn main(init: std.process.Init) !void {
         } else if (std.mem.eql(u8, event.name, "control")) {
             var control = try event.parseControl(init.gpa);
             defer control.deinit();
-            // A resumable application persists tokens after applying earlier data.
+            // After applying earlier data, checkpoint streamNextOffset and
+            // echo streamCursor separately on the next read's options.cursor.
             if (control.value.streamClosed) return;
         } else if (std.mem.eql(u8, event.name, "credential-expired")) {
             return error.CredentialExpired;

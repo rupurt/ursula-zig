@@ -25,7 +25,8 @@ var result = try client.send(.{ .read = .{ .stream = stream } });
 defer result.deinit();
 try result.head.requireSuccess();
 const metadata = try result.head.metadata();
-// Consume result.body and persist metadata.next_offset or metadata.cursor.
+// Consume result.body before checkpointing metadata.next_offset.
+// Keep metadata.cursor separately to echo alongside the next read position.
 ```
 
 Use the `io` and `gpa` supplied by `std.process.Init` in an application. The
@@ -51,7 +52,7 @@ Pass a tagged `ursula.Operation` to `send` or `open`. The types in
 | `create_bucket` | Acknowledge a bucket. |
 | `create_stream` | Create with optional payload, lifetime, producer identity, or attributes. |
 | `append` | Append bytes; set `options.closed = true` for append-and-close or an empty close. |
-| `read` | Read from an offset, cursor, or JSON record position; optionally long-poll. |
+| `read` | Read from an offset or JSON record position, optionally with a separate cursor; optionally long-poll. |
 | `head` | Inspect metadata, optionally using `if_none_match`. |
 | `delete_stream` | Permanently delete a stream. |
 | `get_attributes`, `set_attributes` | Read or replace the JSON attribute object. |
@@ -69,6 +70,35 @@ For appends that may need retries, supply all of `Producer.id`, `epoch`, and `se
 Reuse the identity and identical payload after an uncertain result; advance the
 sequence only after handling the acknowledgement. The client does not retry writes,
 reconnect reads, refresh credentials, or choose producer identities automatically.
+
+## Read continuation and cursor migration
+
+Use the last applied `Stream-Next-Offset` as the next read position. Echo
+`Stream-Cursor` separately when the server supplies it:
+
+```zig
+// Apply result.body before advancing the checkpoint. result still owns metadata.
+var next = try client.send(.{ .read = .{ .stream = stream, .options = .{
+    .position = .{ .offset = metadata.next_offset orelse return error.MissingOffset },
+    .cursor = metadata.cursor,
+    .live = .long_poll,
+} } });
+defer next.deinit();
+try next.head.requireSuccess();
+```
+
+For JSON record reads, use `.position = .{ .record = metadata.record_next.? }`
+after checking extension support and the header's presence; `.cursor` remains
+independent. Header strings borrow their response, so copy both tokens when
+the next request outlives that response.
+
+**Breaking change:** `Position.cursor` has been removed. Replace
+`.position = .{ .cursor = token }` with an offset/record checkpoint plus
+`.cursor = token`. A saved cursor alone is insufficient to recover a read
+position; do not reinterpret it as an offset even when the values look alike.
+It coordinates cache requests and provides no stream-incarnation guarantee.
+The [architecture notes](architecture.md#protocol-decisions) explain the
+conflicting upstream documentation and verified server behavior.
 
 ## Responses and limits
 
@@ -120,7 +150,8 @@ while (try decoder.next()) |event| {
     if (std.mem.eql(u8, event.name, "control")) {
         var control = try event.parseControl(allocator);
         defer control.deinit();
-        // Persist streamCursor or streamNextOffset AFTER applying preceding data.
+        // Checkpoint streamNextOffset AFTER applying preceding data.
+        // Save streamCursor separately to echo alongside that position.
         if (control.value.streamClosed) break;
     }
 }
@@ -137,7 +168,8 @@ oversized events, and reader errors stop decoding. Destroy a failed decoder and
 reconnect with a fresh one if application policy permits.
 
 A `null` event means the connection ended, not that the durable stream is closed.
-Reopen from the last successfully applied control cursor or offset. Do not
+Reopen from the last successfully applied control offset (or record position),
+with `streamCursor` supplied separately as `ReadOptions.cursor`. Do not
 reconnect after `streamClosed`. Handle `credential-expired` by refreshing the
 credential before reconnecting. The parser exposes unknown event names, persistent
 SSE IDs, and retry hints but does not enact browser EventSource reconnect behavior.

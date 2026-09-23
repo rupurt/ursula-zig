@@ -38,12 +38,12 @@ pub const AppendOptions = struct {
     record_match: ?u64 = null,
 };
 
-/// A read position. Offset and cursor strings must be passed back unchanged.
+/// A read position. Offset strings must be passed back unchanged.
+/// Cache cursors are independent of position; see ReadOptions.cursor.
 pub const Position = union(enum) {
     beginning,
     now,
     offset: []const u8,
-    cursor: []const u8,
     record: u64,
     record_now,
     tail_records: u64,
@@ -52,6 +52,10 @@ pub const Position = union(enum) {
 /// Read modes share the same route. Use Client.open for unbounded SSE bodies.
 pub const ReadOptions = struct {
     position: Position = .beginning,
+    /// Echo the last Stream-Cursor (or SSE streamCursor) unchanged alongside
+    /// the offset/record position. This cache token is not a checkpoint or a
+    /// stream-incarnation identifier. Borrows the caller's bytes for the call.
+    cursor: ?[]const u8 = null,
     live: enum { catch_up, long_poll, sse } = .catch_up,
     max_bytes: ?u64 = null,
     max_records: ?u64 = null,
